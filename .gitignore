@@ -16,6 +16,9 @@ uploads/
 .idea/
 .vscode/
 
+# 데이터베이스
+.db
+
 
 # Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
 

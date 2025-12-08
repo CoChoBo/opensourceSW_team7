@@ -74,3 +74,16 @@ def list_ingredients(db: Session = Depends(get_db)):
         .order_by(models.FridgeIngredient.expected_expiry.asc().nulls_last())
     )
     return q.all()
+
+
+@router.get("/", response_model=list[schemas.FridgeIngredientOut])
+def list_ingredients(db: Session = Depends(get_db)):
+    """
+    냉장고에 저장된 식재료 전체 조회 (디버그/확인용)
+    """
+    items = (
+        db.query(models.FridgeIngredient)
+        .order_by(models.FridgeIngredient.id.desc())
+        .all()
+    )
+    return items
