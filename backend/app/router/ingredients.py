@@ -7,7 +7,7 @@ import shutil
 
 from app.db import get_db
 from app import models, schemas
-from app.services.yolo_service import detect_ingredient
+from app.services.yolo_service import detect_ingredient, map_label_to_name_category
 from app.services.expiry_service import calculate_expected_expiry
 
 router = APIRouter(prefix="/api/ingredients", tags=["ingredients"])
@@ -37,10 +37,10 @@ async def scan_ingredient(
         shutil.copyfileobj(image.file, buffer)
 
     # 2) YOLO로 식재료 인식
-    detected_name, confidence = detect_ingredient(str(file_path))
+    raw_label, confidence = detect_ingredient(str(file_path))
 
-    # TODO: label → category 매핑 로직 추가 (예: onion -> vegetable)
-    category = "vegetable"
+    # 라벨을 우리 서비스용 한글 이름/카테고리로 매핑
+    detected_name, category = map_label_to_name_category(raw_label)
 
     # 3) 보편적 소비기한 기준 예상 유통기한 계산
     expected_expiry = calculate_expected_expiry(category)
@@ -64,26 +64,21 @@ async def scan_ingredient(
 
 
 @router.get("/", response_model=list[schemas.FridgeIngredientOut])
-def list_ingredients(db: Session = Depends(get_db)):
+def list_ingredients(
+    order: str = "expiry",  # "expiry" or "recent"
+    db: Session = Depends(get_db),
+):
     """
-    전체 냉장고 재료 목록을 소비기한 임박 순으로 정렬해서 반환.
-    (알리미·색상 표시 기준 데이터)
+    냉장고 재료 목록 조회.
+
+    - order="expiry": 소비기한 임박 순 (알리미용 기본)
+    - order="recent": 최근 등록 순 (디버그/관리용)
     """
-    q = (
-        db.query(models.FridgeIngredient)
-        .order_by(models.FridgeIngredient.expected_expiry.asc().nulls_last())
-    )
+    q = db.query(models.FridgeIngredient)
+
+    if order == "recent":
+        q = q.order_by(models.FridgeIngredient.id.desc())
+    else:  # 기본값: expiry
+        q = q.order_by(models.FridgeIngredient.expected_expiry.asc())
+
     return q.all()
-
-
-@router.get("/", response_model=list[schemas.FridgeIngredientOut])
-def list_ingredients(db: Session = Depends(get_db)):
-    """
-    냉장고에 저장된 식재료 전체 조회 (디버그/확인용)
-    """
-    items = (
-        db.query(models.FridgeIngredient)
-        .order_by(models.FridgeIngredient.id.desc())
-        .all()
-    )
-    return items

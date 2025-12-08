@@ -30,10 +30,23 @@ class FridgeIngredientCreate(BaseModel):
 
 class FridgeIngredientOut(FridgeIngredientBase):
     id: int
-    registered_at: datetime
+    name: str
+    category: str | None = None
+    expected_expiry: datetime | None = None
+    status: str | None = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True
+
+class IngredientScanResult(BaseModel):
+    id: int
+    name: str
+    category: str | None = None
+    expected_expiry: datetime | None = None
+    status: str | None = None
+
+    class Config:
+        from_attributes = True  
 
 
 # ---------- 음식물 쓰레기 ----------

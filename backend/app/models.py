@@ -32,7 +32,7 @@ class FridgeIngredient(Base):
     category = Column(String, nullable=True)        # 채소/과일/육류/유제품 등
     quantity = Column(Float, nullable=True)         # 수량
     unit = Column(String, nullable=True)            # g, 개, ml 등
-    registered_at = Column(
+    created_at = Column(
         DateTime, server_default=func.now()
     )                                              # 등록일
     expected_expiry = Column(Date, nullable=True)  # 보편적 소비기한 기준 예상 유통기한
