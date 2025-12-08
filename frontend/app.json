@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "test1",
-    "slug": "test1",
+    "name": "냉장고를 지켜줘",
+    "slug": "냉장고를 부탁해",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",

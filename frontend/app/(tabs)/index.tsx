@@ -20,6 +20,7 @@ export default function HomeScreen() {
     { label: "음식물 쓰레기 분석", path: "/waste-analysis", emoji: "🗑" },
     { label: "환경/분리배출 가이드", path: "/guide", emoji: "♻️" },
     { label: "마이페이지(포인트)", path: "/mypage", emoji: "⭐" },
+    { label: "이미지 분석(카메라)", path: "/camera", emoji: "📷" },
   ];
 
   return (
