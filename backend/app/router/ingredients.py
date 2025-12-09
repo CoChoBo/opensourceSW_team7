@@ -74,3 +74,34 @@ def list_ingredients(db: Session = Depends(get_db)):
         .order_by(models.FridgeIngredient.expected_expiry.asc().nulls_last())
     )
     return q.all()
+
+@router.post("/manual", response_model=schemas.FridgeIngredientOut)
+def create_ingredient_manual(
+    payload: schemas.FridgeIngredientCreate,
+    db: Session = Depends(get_db),
+):
+    """
+    YOLO 없이 사용자가 직접 입력해서 재료를 등록하는 엔드포인트.
+    - expected_expiry 를 안 보내면 category 기준으로 자동 계산.
+    """
+    category = payload.category or "etc"
+
+    if payload.expected_expiry is None:
+        expected_expiry = calculate_expected_expiry(category)
+    else:
+        expected_expiry = payload.expected_expiry
+
+    ingredient = models.FridgeIngredient(
+        name=payload.name,
+        category=category,
+        quantity=payload.quantity,
+        unit=payload.unit,
+        expected_expiry=expected_expiry,
+        status=models.FridgeIngredientStatus.FRESH,
+        image_path=None,
+    )
+
+    db.add(ingredient)
+    db.commit()
+    db.refresh(ingredient)
+    return ingredient

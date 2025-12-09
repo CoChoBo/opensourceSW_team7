@@ -9,20 +9,22 @@ from app.services.recipe_ai_service import suggest_recipes_from_ingredients
 router = APIRouter(prefix="/api/recipes", tags=["recipes"])
 
 
-@router.get("/suggest", response_model=list[schemas.RecipeOut])
-def suggest_recipes(db: Session = Depends(get_db)):
+@router.post("/suggest", response_model=list[schemas.RecipeOut])
+def suggest_recipes(payload: schemas.RecipeSuggestRequest, db: Session = Depends(get_db)):
     """
-    1) 냉장고_재료 목록에서 식재료 이름만 추출
-    2) AI 레시피 서비스에게 전달하여 추천 레시피 리스트 받기
+    1) 프론트에서 식재료 리스트 전달 받기
+    2) AI 레시피 서비스에게 전달하여 Gemini + CSV RAG로 레시피를 생성하고 추천 레시피 리스트 받기
     3) 받은 레시피를 DB Recipe 테이블에 저장한 뒤, 그 내용을 반환
        (즐겨찾기/히스토리에서 재사용 가능하도록)
     """
-    # 1) 현재 냉장고 재료 조회
-    ingredients = db.query(models.FridgeIngredient).all()
-    ingredient_names = {item.name for item in ingredients}  # 중복 제거
+    # 1) 선택한 재료 리스트 받기
+    ingredient_names = payload.ingredients
+
+    if not ingredient_names:
+        raise HTTPException(status_code=400, detail="ingredients 리스트가 비어 있습니다.")
 
     # 2) AI 레시피 서비스 호출
-    suggestions = suggest_recipes_from_ingredients(list(ingredient_names))
+    suggestions = suggest_recipes_from_ingredients(ingredient_names)
 
     # 3) DB에 저장 (이미 비슷한 레시피가 있으면 재사용해도 됨 → 나중에 개선)
     recipe_objs: list[models.Recipe] = []

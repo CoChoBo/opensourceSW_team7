@@ -1,9 +1,13 @@
 # app/main.py
+from dotenv import load_dotenv
+load_dotenv()
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .db import Base, engine
 from .router import ingredients, waste, recipes
-from dotenv import load_dotenv
+import os
+print("Loaded API KEY:", os.getenv("GEMINI_API_KEY"))
+
 
 # DB 테이블 생성
 Base.metadata.create_all(bind=engine)
@@ -12,7 +16,7 @@ app = FastAPI(
     title="Smart Fridge Backend",
     description="1인 가구 식재료 낭비 감소 & 유통기한 관리 자동화를 위한 스마트 냉장고 관리 서비스",
 )
-load_dotenv()
+
 
 origins = [
     "http://localhost:8081",  # Expo Web 기본 포트
