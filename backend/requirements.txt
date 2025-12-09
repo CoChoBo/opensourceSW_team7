@@ -26,6 +26,7 @@ pillow
 python-dateutil
 pytz
 
+
 # ----- Optional -----
 starlette
 apscheduler
@@ -34,3 +35,4 @@ apscheduler
 chromadb
 sentence-transformers
 numpy
+pypdf

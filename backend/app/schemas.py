@@ -121,3 +121,17 @@ class RecipeSuggestRequest(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# -------------------------------------------------------------
+# 분리배출 / 음식물 쓰레기 Q&A용 스키마
+# -------------------------------------------------------------
+
+class WasteQuestion(BaseModel):
+    question: str
+
+
+class WasteAnswerOut(BaseModel):
+    question: str
+    answer: str
+    sources: list[str]
