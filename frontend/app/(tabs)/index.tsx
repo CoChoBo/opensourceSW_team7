@@ -4,6 +4,8 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   Dimensions,
+  Alert,
+  Pressable,
   SafeAreaView,
   StyleSheet,
   Text,
@@ -17,6 +19,10 @@ import Animated, {
   withSpring,
 } from "react-native-reanimated";
 
+import { API_BASE_URL } from "../../constants/api";
+
+type BackendStatus = "idle" | "ok" | "error";
+
 // 화면 크기 가져오기
 const { width } = Dimensions.get("window");
 
@@ -26,6 +32,7 @@ export default function FridgeHomeScreen() {
 
   const [isOpen, setIsOpen] = useState(false); // 냉장고 열림 상태
   const openProgress = useSharedValue(0);      // 애니메이션 값 (0: 닫힘, 1: 열림)
+  const [backendStatus, setBackendStatus] = useState<BackendStatus>("idle");
 
   // ✅ URL에 ?open=1 이 붙어 있으면 처음부터 냉장고 열어주기
   useEffect(() => {
@@ -37,6 +44,7 @@ export default function FridgeHomeScreen() {
       });
     }
   }, [open]);
+
 
   // 메뉴 아이템 (4개)
   const menuItems = [
@@ -86,6 +94,46 @@ export default function FridgeHomeScreen() {
           <TouchableOpacity onPress={toggleFridge} style={styles.closeBtn}>
             <Ionicons name="close-circle" size={30} color="#cbd5e1" />
           </TouchableOpacity>
+  // ---- 백엔드 헬스체크 ----
+  const checkHealth = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/health`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      console.log("헬스체크 응답:", data);
+      setBackendStatus("ok");
+    } catch (err) {
+      console.error("헬스체크 실패:", err);
+      setBackendStatus("error");
+      Alert.alert(
+        "❌ 서버 연결 실패",
+        "백엔드 서버에 연결할 수 없습니다.\n주소와 포트를 확인해주세요."
+      );
+    }
+  };
+
+  useEffect(() => {
+    checkHealth();
+  }, []);
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView contentContainerStyle={styles.container}>
+        {/* 상단 설명 */}
+        <View style={styles.header}>
+          <Text style={styles.title}>🥬 냉장고를 지켜줘</Text>
+          <Text style={styles.subtitle}>
+            식재료 관리 · 레시피 추천 · 음식물 쓰레기 감소 · 친환경 가이드 서비스
+          </Text>
+
+          <Text style={styles.healthText}>
+            Backend:{" "}
+            {backendStatus === "idle"
+              ? "체크 중..."
+              : backendStatus === "ok"
+              ? "연결됨 ✅"
+              : "연결 실패 ❌"}
+          </Text>
         </View>
 
         <View style={styles.grid}>
@@ -190,6 +238,15 @@ const styles = StyleSheet.create({
     marginTop: 40,
     color: "#4b5563",
     fontSize: 12,
+  },
+  healthText: {
+    marginTop: 8,
+    fontSize: 12,
+    color: "#9ca3af",
+  },
+  menuList: {
+    gap: 12,
+    marginBottom: 32,
   },
 
   // --- 문 (Doors) 스타일 ---

@@ -1,15 +1,41 @@
-import React from "react";
+import React, { useState} from "react";
 import {
   SafeAreaView,
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
+  Alert,
 } from "react-native";
+import { API_BASE_URL } from "../../constants/api"; // 경로는 나중에 조정!
 
 const HomeScreen: React.FC = () => {
+  const [backendStatus, setBackendStatus] = useState<
+    "idle" | "ok" | "error"
+  >("idle");
+
+  const checkHealth = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/health`);
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      console.log("헬스체크 응답:", data);
+      setBackendStatus("ok");
+      Alert.alert("✅ 서버 연결 성공", "백엔드가 정상적으로 동작 중입니다.");
+    } catch (err) {
+      console.error("헬스체크 실패:", err);
+      setBackendStatus("error");
+      Alert.alert(
+        "❌ 서버 연결 실패",
+        "백엔드 서버에 연결할 수 없습니다.\n주소/포트가 맞는지 확인해주세요."
+      );
+    }
+  };
   const handleStartAnalyze = () => {
     console.log("분석 시작 버튼 클릭");
+    checkHealth();
   };
 
   const handleOpenHistory = () => {
@@ -46,6 +72,16 @@ const HomeScreen: React.FC = () => {
         <View style={styles.footer}>
           <Text style={styles.footerText}>
             LogMeal AI + FastAPI + SQLite{"\n"}React Native Frontend
+          </Text>
+
+          {/* 🔹 헬스 체크 상태 표시 */}
+          <Text style={styles.healthText}>
+            Backend:{" "}
+            {backendStatus === "idle"
+            ? "아직 체크 안 함"
+            : backendStatus === "ok"
+            ? "✅ 정상 작동 중"
+            : "❌ 연결 실패"}
           </Text>
         </View>
       </View>
@@ -115,5 +151,10 @@ const styles = StyleSheet.create({
     color: "#6b7280",
     textAlign: "center",
     lineHeight: 16,
+  },
+  healthText: {
+    marginTop: 6,
+    fontSize: 12,
+    color: "#9ca3af",
   },
 });

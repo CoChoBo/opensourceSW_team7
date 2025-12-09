@@ -1,0 +1,28 @@
+# ----- FastAPI Core -----
+fastapi
+uvicorn[standard]
+python-multipart
+aiofiles
+pydantic
+sqlalchemy
+
+# ----- Image & YOLO -----
+opencv-python
+ultralytics
+torch
+torchvision
+
+# ----- AI / LLM / Web Search -----
+openai
+requests
+tavily-python
+python-dotenv
+
+# ----- Utils -----
+pillow
+python-dateutil
+pytz
+
+# ----- Optional -----
+starlette
+apscheduler
