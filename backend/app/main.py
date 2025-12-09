@@ -1,10 +1,12 @@
 # app/main.py
 from dotenv import load_dotenv
 load_dotenv()
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .db import Base, engine
 from .router import ingredients, waste, recipes
+from app.services.recipe_ai_service import init_recipe_rag
 import os
 print("Loaded API KEY:", os.getenv("GEMINI_API_KEY"))
 
@@ -37,7 +39,13 @@ app.include_router(ingredients.router)
 app.include_router(waste.router)
 app.include_router(recipes.router)
 
-# 🔹 헬스 체크용 엔드포인트
+# 정통 RAG 초기화 (CSV → 벡터DB) 나중에 주석 풀기
+# @app.on_event("startup")
+# async def startup_event():
+#     init_recipe_rag()
+
+
+# 헬스 체크용 엔드포인트
 @app.get("/health")
 def health_check():
     return {"status": "ok", "message": "backend is alive"}

@@ -29,3 +29,8 @@ pytz
 # ----- Optional -----
 starlette
 apscheduler
+
+# ----- RAG -----
+chromadb
+sentence-transformers
+numpy
