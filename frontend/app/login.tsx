@@ -13,7 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { getUser, saveUser } from "../utils/auth"; // ✅ getUser 추가
+import { getUser, saveUser } from "@/util/utils/auth"; // ✅ getUser 추가
 
 export default function LoginScreen() {
   const router = useRouter();

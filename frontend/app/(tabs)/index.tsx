@@ -34,6 +34,37 @@ export default function FridgeHomeScreen() {
   const openProgress = useSharedValue(0);      // 애니메이션 값 (0: 닫힘, 1: 열림)
   const [backendStatus, setBackendStatus] = useState<BackendStatus>("idle");
 
+  // 메뉴 아이템 (4개)
+  const menuItems = [
+    { label: "나의 냉장고", path: "/ingredients", icon: "nutrition", color: "#fca5a5" }, // 빨강 (사과 느낌)
+    { label: "레시피 추천", path: "/recipes", icon: "restaurant", color: "#fde047" },   // 노랑 (계란/치즈)
+    { label: "분리수거", path: "/waste-analysis", icon: "leaf", color: "#86efac" },     // 초록 (채소)
+    { label: "마이페이지", path: "/mypage", icon: "person", color: "#93c5fd" },         // 파랑 (물/얼음)
+  ];
+
+  // ---- 백엔드 헬스체크 ----
+  const checkHealth = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/health`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      console.log("헬스체크 응답:", data);
+      setBackendStatus("ok");
+    } catch (err) {
+      console.error("헬스체크 실패:", err);
+      setBackendStatus("error");
+      Alert.alert(
+        "❌ 서버 연결 실패",
+        "백엔드 서버에 연결할 수 없습니다.\n주소와 포트를 확인해주세요."
+      );
+    }
+  };
+
+  useEffect(() => {
+    checkHealth();
+  }, []);
+
+
   // ✅ URL에 ?open=1 이 붙어 있으면 처음부터 냉장고 열어주기
   useEffect(() => {
     if (open === "1") {
@@ -44,15 +75,6 @@ export default function FridgeHomeScreen() {
       });
     }
   }, [open]);
-
-
-  // 메뉴 아이템 (4개)
-  const menuItems = [
-    { label: "나의 냉장고", path: "/ingredients", icon: "nutrition", color: "#fca5a5" }, // 빨강 (사과 느낌)
-    { label: "레시피 추천", path: "/recipes", icon: "restaurant", color: "#fde047" },   // 노랑 (계란/치즈)
-    { label: "분리수거", path: "/waste-analysis", icon: "leaf", color: "#86efac" },     // 초록 (채소)
-    { label: "마이페이지", path: "/mypage", icon: "person", color: "#93c5fd" },         // 파랑 (물/얼음)
-  ];
 
   // 냉장고 열기/닫기 함수
   const toggleFridge = () => {
@@ -89,44 +111,9 @@ export default function FridgeHomeScreen() {
       {/* 1. 냉장고 내부 (메뉴판) */}
       <Animated.View style={[styles.innerContainer, innerContentStyle]}>
         <View style={styles.shelfHeader}>
-          <Text style={styles.welcomeText}>어서오세요! 무엇을 할까요?</Text>
-          {/* 다시 닫기 버튼 */}
-          <TouchableOpacity onPress={toggleFridge} style={styles.closeBtn}>
-            <Ionicons name="close-circle" size={30} color="#cbd5e1" />
-          </TouchableOpacity>
-  // ---- 백엔드 헬스체크 ----
-  const checkHealth = async () => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/health`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      console.log("헬스체크 응답:", data);
-      setBackendStatus("ok");
-    } catch (err) {
-      console.error("헬스체크 실패:", err);
-      setBackendStatus("error");
-      Alert.alert(
-        "❌ 서버 연결 실패",
-        "백엔드 서버에 연결할 수 없습니다.\n주소와 포트를 확인해주세요."
-      );
-    }
-  };
-
-  useEffect(() => {
-    checkHealth();
-  }, []);
-
-  return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.container}>
-        {/* 상단 설명 */}
-        <View style={styles.header}>
-          <Text style={styles.title}>🥬 냉장고를 지켜줘</Text>
-          <Text style={styles.subtitle}>
-            식재료 관리 · 레시피 추천 · 음식물 쓰레기 감소 · 친환경 가이드 서비스
-          </Text>
-
-          <Text style={styles.healthText}>
+          <View>
+            <Text style={styles.welcomeText}>어서오세요! 무엇을 할까요?</Text>
+            <Text style={styles.healthText}>
             Backend:{" "}
             {backendStatus === "idle"
               ? "체크 중..."
@@ -135,6 +122,13 @@ export default function FridgeHomeScreen() {
               : "연결 실패 ❌"}
           </Text>
         </View>
+
+        {/* 다시 닫기 버튼 */}
+        <TouchableOpacity onPress={toggleFridge} style={styles.closeBtn}>
+          <Ionicons name="close-circle" size={30} color="#cbd5e1" />
+        </TouchableOpacity>
+      </View>
+            
 
         <View style={styles.grid}>
           {menuItems.map((item, index) => (

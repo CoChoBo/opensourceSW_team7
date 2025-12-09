@@ -15,8 +15,8 @@ import {
 
 import IngredientModal from "../components/IngredientModal";
 import { CATEGORIES } from "../constants/indredientData";
-import { getUser, LoggedInUser } from "../utils/auth"; // ✅ 로그인 유저 불러오기
-import { deleteIngredient, getIngredients, initDB } from "../utils/db";
+import { getUser, LoggedInUser } from "@/util/utils/auth"; // ✅ 로그인 유저 불러오기
+import { deleteIngredient, getIngredients, initDB } from "@/util/utils/db";
 
 export default function IngredientsScreen() {
   const router = useRouter();

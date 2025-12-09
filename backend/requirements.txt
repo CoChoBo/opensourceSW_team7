@@ -17,6 +17,9 @@ openai
 requests
 tavily-python
 python-dotenv
+google-generativeai
+pandas
+ 
 
 # ----- Utils -----
 pillow

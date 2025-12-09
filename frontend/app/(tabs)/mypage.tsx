@@ -15,7 +15,7 @@ import {
   View,
 } from "react-native";
 
-import { clearUser, getUser, LoggedInUser, saveUser } from "../../utils/auth";
+import { clearUser, getUser, LoggedInUser, saveUser } from "@/util/utils/auth";
 
 type UserProfile = {
   userId: string;

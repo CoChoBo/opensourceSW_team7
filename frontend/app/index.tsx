@@ -2,7 +2,7 @@
 import { Redirect } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
-import { getUser } from "../utils/auth"; // 
+import { getUser } from "@/util/utils/auth"; // 
 
 export default function Index() {
   const [loading, setLoading] = useState(true);

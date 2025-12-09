@@ -14,7 +14,7 @@ import {
   View,
 } from "react-native";
 import { CATEGORIES, INGREDIENT_LIST } from "../constants/indredientData";
-import { addIngredient, updateIngredient } from "../utils/db"; // updateIngredient 추가
+import { addIngredient, updateIngredient } from "@/util/utils/db"; // updateIngredient 추가
 
 interface Props {
   visible: boolean;
