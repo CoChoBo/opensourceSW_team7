@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   FlatList,
@@ -13,23 +13,46 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { addIngredient } from "../utils/db";
-// 데이터 파일 불러오기
 import { CATEGORIES, INGREDIENT_LIST } from "../constants/indredientData";
+import { addIngredient, updateIngredient } from "../utils/db"; // updateIngredient 추가
 
 interface Props {
   visible: boolean;
   onClose: () => void;
   onRefresh: () => void;
+  editItem?: any; // 수정할 아이템 정보 (없으면 추가 모드)
+  userId?: string; 
 }
 
-export default function IngredientModal({ visible, onClose, onRefresh }: Props) {
+export default function IngredientModal({ visible, onClose, onRefresh, editItem,userId, }: Props) {
   const [searchText, setSearchText] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("전체");
 
-  // 팝업 상태 관리
-  const [targetItem, setTargetItem] = useState<typeof INGREDIENT_LIST[0] | null>(null);
+  // 팝업(상세 설정) 상태
+  const [targetItem, setTargetItem] = useState<any>(null);
   const [daysInput, setDaysInput] = useState("");
+  
+  // 수정 모드일 때 초기값 세팅
+  useEffect(() => {
+    if (visible && editItem) {
+      // 수정 모드: 기존 데이터를 targetItem 형식으로 변환
+      setTargetItem({
+        id: editItem.id, // DB ID
+        name: editItem.name,
+        category: editItem.category,
+        icon: editItem.icon,
+        expiry: editItem.expiry,
+      });
+      setDaysInput(editItem.expiry.toString());
+      setSelectedCategory(editItem.category); // 카테고리도 맞춰줌
+    } else if (visible && !editItem) {
+      // 추가 모드: 초기화
+      setTargetItem(null);
+      setDaysInput("");
+      setSearchText("");
+      setSelectedCategory("전체");
+    }
+  }, [visible, editItem]);
 
   // 필터링 로직
   const filteredData = useMemo(() => {
@@ -41,20 +64,19 @@ export default function IngredientModal({ visible, onClose, onRefresh }: Props) 
     });
   }, [searchText, selectedCategory]);
 
-  // 아이템 클릭 시 팝업 열기
-  const handleItemPress = (item: typeof INGREDIENT_LIST[0]) => {
+  const handleItemPress = (item: any) => {
     setTargetItem(item);
     setDaysInput(item.expiry.toString());
   };
 
-  // 팝업 닫기
   const closePopup = () => {
     setTargetItem(null);
     setDaysInput("");
+    onClose();
   };
 
-  // DB 저장
-  const handleConfirmAdd = () => {
+  // 저장 (추가 또는 수정)
+  const handleConfirm = () => {
     if (!targetItem) return;
 
     const expiry = parseInt(daysInput);
@@ -63,14 +85,35 @@ export default function IngredientModal({ visible, onClose, onRefresh }: Props) 
       return;
     }
 
-    addIngredient(targetItem.name, expiry, targetItem.category, () => {
-      Alert.alert("완료", `${targetItem.name} (D-${expiry}) 냉장고에 쏙!`);
+    if (!userId) {
+  Alert.alert("오류", "로그인 정보가 없습니다.");
+  return;
+}
+
+if (editItem) {
+  // 수정
+  updateIngredient(
+    userId,
+    editItem.id,
+    targetItem.name,
+    expiry,
+    targetItem.category,
+    () => {
+      Alert.alert("수정 완료", `${targetItem.name} 정보가 수정되었습니다.`);
       onRefresh();
       closePopup();
-    });
+    }
+  );
+} else {
+  // 추가
+  addIngredient(userId, targetItem.name, expiry, targetItem.category, () => {
+    Alert.alert("완료", `${targetItem.name} (D-${expiry}) 냉장고에 쏙!`);
+    onRefresh();
+    closePopup();
+  });
+}
   };
 
-  // 날짜 조절 버튼
   const adjustDays = (amount: number) => {
     const current = parseInt(daysInput) || 0;
     const nextVal = Math.max(0, current + amount);
@@ -98,10 +141,16 @@ export default function IngredientModal({ visible, onClose, onRefresh }: Props) 
           <TouchableOpacity onPress={onClose}>
             <Ionicons name="close" size={28} color="#111827" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>재료 담기</Text>
+          <Text style={styles.headerTitle}>
+            {editItem ? "재료 수정" : "재료 담기"}
+          </Text>
           <View style={{ width: 28 }} />
         </View>
 
+        {/* 수정 모드가 아닐 때만 검색창/리스트 보여주기 (수정 시에는 날짜만 바꾸는 경우가 많으므로) 
+            하지만 카테고리나 이름을 바꾸고 싶을 수도 있으니 그대로 둡니다. 
+        */}
+        
         {/* 검색창 */}
         <View style={styles.searchContainer}>
           <Ionicons name="search" size={20} color="#9ca3af" style={{ marginRight: 8 }} />
@@ -157,15 +206,15 @@ export default function IngredientModal({ visible, onClose, onRefresh }: Props) 
           }
         />
 
-        {/* 🚀 소비기한 설정 팝업 */}
-        {targetItem && (
+        {/* 🚀 상세 설정 팝업 (수정 모드이면 처음부터 떠있게 처리) */}
+        {(targetItem) && (
           <KeyboardAvoidingView 
             behavior={Platform.OS === "ios" ? "padding" : "height"}
             style={styles.popupOverlay}
           >
             <View style={styles.popupCard}>
               <Text style={styles.popupTitle}>
-                {targetItem.icon} {targetItem.name} 추가하기
+                {targetItem.icon} {targetItem.name} {editItem ? "수정" : "추가"}
               </Text>
               <Text style={styles.popupDesc}>남은 소비기한을 설정해주세요.</Text>
 
@@ -193,8 +242,10 @@ export default function IngredientModal({ visible, onClose, onRefresh }: Props) 
                 <TouchableOpacity style={styles.cancelBtn} onPress={closePopup}>
                   <Text style={styles.cancelText}>취소</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirmAdd}>
-                  <Text style={styles.confirmText}>냉장고에 넣기</Text>
+                <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirm}>
+                  <Text style={styles.confirmText}>
+                    {editItem ? "수정 완료" : "냉장고에 넣기"}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -206,7 +257,6 @@ export default function IngredientModal({ visible, onClose, onRefresh }: Props) 
   );
 }
 
-// 👇 여기서부터 스타일 정의 (이 부분이 빠져서 에러가 났던 거예요!)
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#ffffff" },
   header: {
@@ -259,7 +309,6 @@ const styles = StyleSheet.create({
   itemName: { fontSize: 14, fontWeight: "600", color: "#374151" },
   emptyText: { textAlign: 'center', marginTop: 50, color: '#9ca3af' },
 
-  // --- 팝업 스타일 (새로 추가된 부분) ---
   popupOverlay: {
     position: "absolute",
     top: 0, left: 0, right: 0, bottom: 0,
@@ -282,7 +331,6 @@ const styles = StyleSheet.create({
   },
   popupTitle: { fontSize: 20, fontWeight: "bold", color: "#111827", marginBottom: 8 },
   popupDesc: { fontSize: 14, color: "#6b7280", marginBottom: 20 },
-  
   dateControl: {
     flexDirection: "row",
     alignItems: "center",
@@ -304,7 +352,6 @@ const styles = StyleSheet.create({
     fontSize: 28, fontWeight: "bold", color: "#3b82f6",
     textAlign: "center", minWidth: 50,
   },
-
   btnRow: { flexDirection: "row", gap: 10, width: '100%' },
   cancelBtn: {
     flex: 1, padding: 14, borderRadius: 12, backgroundColor: "#f3f4f6", alignItems: "center",

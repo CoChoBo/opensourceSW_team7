@@ -6,8 +6,9 @@ import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
+// ✅ 첫 화면을 login 으로 지정
 export const unstable_settings = {
-  anchor: '(tabs)',
+  initialRouteName: 'login',
 };
 
 export default function RootLayout() {
@@ -15,11 +16,18 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      {/* 🔹 여기에서 Stack 전체에 headerShown:false 넣기 */}
       <Stack screenOptions={{ headerShown: false }}>
+        {/* 1. 로그인 화면 */}
+        <Stack.Screen name="login" />
+
+        {/* 2. 로그인 후 들어갈 탭 묶음 */}
         <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-        {/* 나중에 camera 같은 것도 여기 추가 가능 (지금은 자동으로 잡혀도 됨) */}
+
+        {/* 3. 모달 (필요 시 사용) */}
+        <Stack.Screen
+          name="modal"
+          options={{ presentation: 'modal', title: 'Modal' }}
+        />
       </Stack>
       <StatusBar style="auto" />
     </ThemeProvider>

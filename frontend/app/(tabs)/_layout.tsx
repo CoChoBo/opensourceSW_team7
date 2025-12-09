@@ -68,7 +68,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="waste-analysis"
         options={{
-          title: '음식물 쓰레기 분석 및 분리 배출',
+          title: '분리수거',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'leaf' : 'leaf-outline'} size={24} color={color} />
           ),
