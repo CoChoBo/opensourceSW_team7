@@ -61,3 +61,8 @@ app-example
 # generated native folders
 /ios
 /android
+
+*.json
+*.jsonl
+*.csv
+*.pdf

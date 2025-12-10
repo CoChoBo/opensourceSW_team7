@@ -13,7 +13,8 @@ from dotenv import load_dotenv
 # -------------------------------------------------------------------
 
 BASE_DIR = Path(__file__).resolve().parents[2]  # backend/
-DATA_PATH = BASE_DIR / "data" / "waste_knowledge.json"
+APP_DIR = BASE_DIR / "app"
+DATA_PATH = APP_DIR  / "data" / "waste_knowledge.json"
 
 EMBED_MODEL = "text-embedding-004"
 GEN_MODEL = "gemini-2.5-flash"  # 현재 잘 되는 모델 이름으로 사용
@@ -90,7 +91,7 @@ def _search_similar_chunks(question: str, top_k: int = 5) -> List[Dict]:
 
 
 # -------------------------------------------------------------------
-# 메인 함수
+# 질문 받는 메인 함수
 # -------------------------------------------------------------------
 
 def answer_waste_question(question: str) -> Tuple[str, List[str]]:
@@ -145,14 +146,16 @@ def answer_waste_question(question: str) -> Tuple[str, List[str]]:
 을 순서대로 설명해 주세요.
 """
 
-    response = _GEN_MODEL.generate_content(
-        [
-            {"role": "system", "parts": [system_prompt]},
-            {"role": "user", "parts": [user_prompt]},
-        ]
-    )
+    full_prompt = system_prompt + "\n\n" + user_prompt
 
-    answer = response.text.strip()
+    response = _GEN_MODEL.generate_content(full_prompt)
+
+    try:
+        answer = response.text.strip()
+    except AttributeError:
+        # fallback
+        answer = response.candidates[0].content.parts[0].text.strip()
+
     sources = list({ch["source"] for ch in top_chunks})
 
     return answer, sources

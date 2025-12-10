@@ -304,7 +304,8 @@ def suggest_recipes_from_ingredients(
 # # 2. 벡터 DB 초기화 (정통 RAG: CSV → 벡터DB)
 # # =====================================
 
-# def init_recipe_rag() -> None:
+def init_recipe_rag() -> None:
+    return
 #     """
 #     앱 시작 시 한 번 호출해서:
 #     - CSV 레시피 데이터를 벡터DB(Chroma)에 upsert.
