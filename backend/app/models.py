@@ -7,12 +7,29 @@ from sqlalchemy import (
     DateTime,
     Date,
     Enum,
+    ForeignKey,
 )
 from sqlalchemy.sql import func
 from .db import Base
 import enum
 from sqlalchemy.dialects.sqlite import JSON
 
+
+# -----------------------------
+# 1) 사용자(User) 모델
+# -----------------------------
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String, unique=True, index=True, nullable=False)
+    password_hash = Column(String, nullable=False)
+    name = Column(String, nullable=True)
+
+
+# -----------------------------
+# 2) 냉장고 / 레시피 / 쓰레기 등 기존 모델
+# -----------------------------
 
 # 냉장고 재료 상태 Enum
 class FridgeIngredientStatus(str, enum.Enum):
@@ -28,6 +45,7 @@ class FridgeIngredient(Base):
     __tablename__ = "fridge_ingredients"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)  # ★ 사용자별 냉장고
     name = Column(String, nullable=False)           # 식재료명
     category = Column(String, nullable=True)        # 채소/과일/육류/유제품 등
     quantity = Column(Float, nullable=True)         # 수량
@@ -52,6 +70,7 @@ class FoodWaste(Base):
     __tablename__ = "food_waste"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)  # ★ 사용자별 기록
     ingredient_name = Column(String, nullable=False)  # 식재료명
     amount_gram = Column(Float, nullable=False)       # 배출량(g)
     discarded_at = Column(DateTime, server_default=func.now())  # 배출일
@@ -61,8 +80,8 @@ class FoodWaste(Base):
 class Recipe(Base):
     """
     AI/웹검색 기반으로 추천된 레시피를 저장해두는 테이블.
-    - 꼭 모든 추천을 저장하지 않아도 되고
-    - 즐겨찾기/히스토리 등록할 때 함께 저장해도 됨.
+    - 레시피 자체는 전체 사용자 공유
+    - 즐겨찾기/히스토리는 User와 연결
     """
     __tablename__ = "recipes"
 
@@ -77,16 +96,18 @@ class Recipe(Base):
     # AI 생성인지, 외부 검색인지 구분할 수 있는 플래그
     source_type = Column(String, default="ai")          # ai / web / user 등
 
+
 class FavoriteRecipe(Base):
     """
     사용자가 즐겨찾기한 레시피.
-    (지금은 단일 사용자 가정으로 user_id 생략, 나중에 추가 가능)
     """
     __tablename__ = "favorite_recipes"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)  # ★ 사용자별 즐겨찾기
     recipe_id = Column(Integer, nullable=False)        # Recipe.id 참조
     created_at = Column(DateTime, server_default=func.now())
+
 
 class RecipeHistory(Base):
     """
@@ -95,6 +116,7 @@ class RecipeHistory(Base):
     __tablename__ = "recipe_history"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)  # ★ 사용자별 히스토리
     recipe_id = Column(Integer, nullable=False)        # Recipe.id 참조
     cooked_at = Column(DateTime, server_default=func.now())
     rating = Column(Float, nullable=True)              # 평점 (1~5 등)

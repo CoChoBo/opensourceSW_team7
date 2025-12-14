@@ -44,33 +44,47 @@ def _load_env_and_model():
 
 
 # -------------------------------------------------------------------
-# 2) waste chunks 로딩
+# 2) waste chunks 로딩 (파일 없으면 서버 안죽음)
 # -------------------------------------------------------------------
 def _load_waste_chunks():
     global _WASTE_CHUNKS
+
     if not DATA_PATH.exists():
-        raise RuntimeError(
-            f"{DATA_PATH} 파일이 없습니다. build_waste_knowledge 스크립트를 실행해 생성하세요."
-        )
-    with DATA_PATH.open("r", encoding="utf-8") as f:
-        _WASTE_CHUNKS = json.load(f)
+        print(f"[WARN] {DATA_PATH} 파일이 없어 waste AI 기능 비활성화됨.")
+        _WASTE_CHUNKS = []
+        return
 
-
-# 모듈 import 시 초기화 (API 키 없어도 정상 작동)
-if _GEN_MODEL is None:
-    _load_env_and_model()
-
-if not _WASTE_CHUNKS:
-    _load_waste_chunks()
+    try:
+        with DATA_PATH.open("r", encoding="utf-8") as f:
+            _WASTE_CHUNKS = json.load(f)
+    except Exception as e:
+        print(f"[WARN] waste_knowledge.json 읽기 실패: {e}")
+        _WASTE_CHUNKS = []
 
 
 # -------------------------------------------------------------------
-# 3) 임베딩: API 키 없으면 fallback 동작
+# 모듈 import 시 초기화 (예외 발생해도 서버 안죽음)
+# -------------------------------------------------------------------
+try:
+    if _GEN_MODEL is None:
+        _load_env_and_model()
+
+    if not _WASTE_CHUNKS:
+        _load_waste_chunks()
+
+except Exception as e:
+    print(f"[WARN] waste AI 초기화 실패: {e}")
+    print("[WARN] waste 기능 비활성화됨 (서버는 정상 작동)")
+    _WASTE_CHUNKS = []
+    _GEN_MODEL = None
+
+
+# -------------------------------------------------------------------
+# 3) 임베딩 (API KEY 없어도 zero-vector 반환)
 # -------------------------------------------------------------------
 def _embed_query(text: str) -> List[float]:
     if not _GEMINI_API_KEY:
-        # 임베딩 불가 → zero vector 대체
-        return [0.0] * 768
+        return [0.0] * 768  # fallback
 
     resp = genai.embed_content(
         model=EMBED_MODEL,
@@ -109,37 +123,42 @@ def _search_similar_chunks(question: str, top_k: int = 5) -> List[Dict]:
 
 
 # -------------------------------------------------------------------
-# 6) 메인 함수 — API 키 없어도 서버는 정상 작동
+# 6) 메인 함수 — AI 키 없어도 정상 동작
 # -------------------------------------------------------------------
 def answer_waste_question(question: str) -> Tuple[str, List[str]]:
     """
     분리수거 질문 처리.
-    API 키가 없으면 fallback 안내만 반환.
+    AI 모델/데이터 없으면 fallback 안내문만 반환.
     """
 
-    # --------------------------
-    # API KEY 없으면 즉시 fallback
-    # --------------------------
+    # API KEY 없으면 fallback
     if not _GEMINI_API_KEY:
         return (
-            "AI 분리배출 분석 기능을 사용할 수 없습니다. "
+            "AI 분리배출 분석 기능을 사용할 수 없습니다.\n"
             "GEMINI_API_KEY가 설정되지 않았습니다.\n"
             "지자체의 공식 분리배출 지침을 참고해 주세요.",
             []
         )
 
-    # --------------------------
+    # 데이터 없으면 fallback
+    if not _WASTE_CHUNKS:
+        return (
+            "공식 분리배출 문서 데이터가 없어 분석할 수 없습니다.\n"
+            "관리자에게 waste_knowledge.json 파일 생성을 요청하세요.",
+            []
+        )
+
     # 정상 처리
-    # --------------------------
     top_chunks = _search_similar_chunks(question, top_k=5)
 
     if not top_chunks:
         return (
-            "등록된 공식 문서에서 관련 정보를 찾지 못했습니다. "
+            "등록된 공식 문서에서 관련 정보를 찾지 못했습니다.\n"
             "거주하시는 지자체의 생활폐기물 안내를 참고해주세요.",
             []
         )
 
+    # 문맥 구성
     context_list = [
         f"[출처: {ch['source']}]\n{ch['text']}"
         for ch in top_chunks
@@ -162,11 +181,12 @@ def answer_waste_question(question: str) -> Tuple[str, List[str]]:
 1) 어떤 종류의 쓰레기인지
 2) 어떻게 버려야 하는지
 3) 주의사항
-을 순서대로 설명해 주세요.
+을 자세히 설명해 주세요.
 """
 
     full_prompt = system_prompt + "\n\n" + user_prompt
 
+    # 모델 응답
     response = _GEN_MODEL.generate_content(full_prompt)
     try:
         answer = response.text.strip()
