@@ -1,112 +1,234 @@
-# app/router/ingredients.py
-from fastapi import APIRouter, UploadFile, File, Depends
-from sqlalchemy.orm import Session
-from datetime import datetime
-from pathlib import Path
-import shutil
+import React, { useEffect, useState } from "react";
+import {
+  Alert,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  FlatList,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 
-from app.db import get_db
-from app import models, schemas
-from app.services.yolo_service import detect_ingredient
-from app.services.expiry_service import calculate_expected_expiry
-from app.services.auth_service import get_current_user
+import { API_BASE_URL } from "@/constants/api";
+import { getAuth } from "@/util/utils/auth";
 
-router = APIRouter(prefix="/api/ingredients", tags=["ingredients"])
+/** 백엔드 FridgeIngredientOut 타입에 맞춤 */
+type Ingredient = {
+  id: number;
+  name: string;
+  category?: string;
+  quantity?: number;
+  unit?: string;
+  expected_expiry?: string; // YYYY-MM-DD
+};
 
-UPLOAD_DIR = Path("uploads")
-UPLOAD_DIR.mkdir(exist_ok=True)
+export default function IngredientsScreen() {
+  const router = useRouter();
 
+  const [items, setItems] = useState<Ingredient[]>([]);
+  const [loading, setLoading] = useState(true);
 
-@router.post("/scan", response_model=schemas.FridgeIngredientOut)
-async def scan_ingredient(
-    image: UploadFile = File(...),
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user),
-):
-    """
-    YOLO로 인식 + 소비기한 계산 + 현재 유저의 냉장고에 저장
-    """
+  // ----------------------------------
+  // 재료 목록 불러오기 (서버)
+  // ----------------------------------
+  const fetchIngredients = async () => {
+    try {
+      const auth = await getAuth();
+      if (!auth) {
+        Alert.alert("로그인 필요", "다시 로그인 해주세요.");
+        router.replace("/login");
+        return;
+      }
 
-    # 1) 이미지 서버에 저장
-    timestamp = int(datetime.utcnow().timestamp())
-    filename = f"{timestamp}_{image.filename}"
-    file_path = UPLOAD_DIR / filename
+      const res = await fetch(`${API_BASE_URL}/api/ingredients`, {
+        headers: {
+          Authorization: `Bearer ${auth.accessToken}`,
+        },
+      });
 
-    with file_path.open("wb") as buffer:
-        shutil.copyfileobj(image.file, buffer)
+      if (!res.ok) {
+        throw new Error("재료 목록 조회 실패");
+      }
 
-    # 2) YOLO로 식재료 인식
-    detected_name, confidence = detect_ingredient(str(file_path))
+      const data = await res.json();
+      setItems(data);
+    } catch (err) {
+      console.error(err);
+      Alert.alert("에러", "재료 목록을 불러오지 못했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    # TODO: label → category 매핑 로직 추가 (예: onion -> vegetable)
-    category = "vegetable"
+  // ----------------------------------
+  // 재료 삭제 (서버)
+  // ----------------------------------
+  const deleteIngredient = async (id: number) => {
+    try {
+      const auth = await getAuth();
+      if (!auth) return;
 
-    # 3) 보편적 소비기한 기준 예상 유통기한 계산
-    expected_expiry = calculate_expected_expiry(category)
+      const res = await fetch(
+        `${API_BASE_URL}/api/ingredients/${id}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${auth.accessToken}`,
+          },
+        }
+      );
 
-    # 4) DB 저장 (초기 기본값: quantity=1, unit="ea")
-    ingredient = models.FridgeIngredient(
-        user_id=current_user.id,
-        name=detected_name,
-        category=category,
-        quantity=1.0,
-        unit="ea",
-        expected_expiry=expected_expiry,
-        status=models.FridgeIngredientStatus.FRESH,
-        image_path=str(file_path),
-    )
+      if (!res.ok) {
+        throw new Error("삭제 실패");
+      }
 
-    db.add(ingredient)
-    db.commit()
-    db.refresh(ingredient)
+      // 성공 시 화면에서 제거
+      setItems((prev) => prev.filter((item) => item.id !== id));
+    } catch (err) {
+      console.error(err);
+      Alert.alert("에러", "재료 삭제에 실패했습니다.");
+    }
+  };
 
-    return ingredient
+  useEffect(() => {
+    fetchIngredients();
+  }, []);
 
+  // ----------------------------------
+  // 렌더
+  // ----------------------------------
+  const renderItem = ({ item }: { item: Ingredient }) => (
+    <View style={styles.card}>
+      <View>
+        <Text style={styles.name}>{item.name}</Text>
+        <Text style={styles.meta}>
+          {item.category ?? "기타"} ·{" "}
+          {item.quantity ?? 1}
+          {item.unit ?? "ea"}
+        </Text>
+        {item.expected_expiry && (
+          <Text style={styles.expiry}>
+            소비기한: {item.expected_expiry}
+          </Text>
+        )}
+      </View>
 
-@router.get("/", response_model=list[schemas.FridgeIngredientOut])
-def list_ingredients(
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user),
-):
-    """
-    현재 로그인한 유저의 냉장고 재료만 반환
-    """
-    q = (
-        db.query(models.FridgeIngredient)
-        .filter(models.FridgeIngredient.user_id == current_user.id)
-        .order_by(models.FridgeIngredient.expected_expiry.asc().nulls_last())
-    )
-    return q.all()
+      <TouchableOpacity
+        onPress={() =>
+          Alert.alert(
+            "삭제",
+            `${item.name}을(를) 삭제할까요?`,
+            [
+              { text: "취소", style: "cancel" },
+              {
+                text: "삭제",
+                style: "destructive",
+                onPress: () => deleteIngredient(item.id),
+              },
+            ]
+          )
+        }
+      >
+        <Ionicons name="trash" size={22} color="#ef4444" />
+      </TouchableOpacity>
+    </View>
+  );
 
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.title}>나의 냉장고</Text>
 
-@router.post("/manual", response_model=schemas.FridgeIngredientOut)
-def create_ingredient_manual(
-    payload: schemas.FridgeIngredientCreate,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user),
-):
-    """
-    YOLO 없이 사용자가 직접 입력해서 재료를 등록.
-    """
-    category = payload.category or "etc"
+        <TouchableOpacity
+          onPress={() => router.push("/ingredients-add")}
+        >
+          <Ionicons name="add-circle" size={30} color="#22c55e" />
+        </TouchableOpacity>
+      </View>
 
-    if payload.expected_expiry is None:
-        expected_expiry = calculate_expected_expiry(category)
-    else:
-        expected_expiry = payload.expected_expiry
+      {loading ? (
+        <Text style={styles.loading}>불러오는 중...</Text>
+      ) : (
+        <FlatList
+          data={items}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={renderItem}
+          contentContainerStyle={{ paddingBottom: 40 }}
+          ListEmptyComponent={
+            <Text style={styles.empty}>
+              등록된 식재료가 없습니다.
+            </Text>
+          }
+        />
+      )}
+    </SafeAreaView>
+  );
+}
 
-    ingredient = models.FridgeIngredient(
-        user_id=current_user.id,
-        name=payload.name,
-        category=category,
-        quantity=payload.quantity,
-        unit=payload.unit,
-        expected_expiry=expected_expiry,
-        status=models.FridgeIngredientStatus.FRESH,
-        image_path=None,
-    )
+//
+// ---------------- 스타일 ----------------
+//
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#0f172a",
+    padding: 16,
+  },
 
-    db.add(ingredient)
-    db.commit()
-    db.refresh(ingredient)
-    return ingredient
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+
+  title: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#e5e7eb",
+  },
+
+  loading: {
+    color: "#9ca3af",
+    textAlign: "center",
+    marginTop: 20,
+  },
+
+  empty: {
+    color: "#9ca3af",
+    textAlign: "center",
+    marginTop: 40,
+  },
+
+  card: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#020617",
+    padding: 16,
+    borderRadius: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#1f2937",
+  },
+
+  name: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#e5e7eb",
+  },
+
+  meta: {
+    fontSize: 13,
+    color: "#9ca3af",
+    marginTop: 4,
+  },
+
+  expiry: {
+    fontSize: 12,
+    color: "#f97316",
+    marginTop: 4,
+  },
+});
